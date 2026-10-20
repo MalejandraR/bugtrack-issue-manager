@@ -2,7 +2,8 @@
 
 Interfaz de usuario del gestor de incidencias **BugTrack**. SPA construida con
 Vite + React (JavaScript), React Router y `fetch`. Sin librerías de UI: CSS3 puro
-con design tokens.
+con design tokens. Identidad visual oscura (paleta casi negra) con sidebar de
+navegación fijo a la izquierda y barra superior con el título de la página.
 
 ## Requisitos
 
@@ -73,14 +74,19 @@ Los tests automatizados (Cypress, Fase 4) encuentran los elementos por
 
 | `data-testid`                          | Elemento                                                        |
 | -------------------------------------- | --------------------------------------------------------------- |
-| `nav-brand`                            | Logo/marca del navbar (vuelve al dashboard)                     |
-| `nav-dashboard`                        | Link del navbar al dashboard                                    |
-| `nav-issues`                           | Link del navbar al listado                                      |
-| `nav-new-issue`                        | Link del navbar a crear incidencia                              |
-| `dashboard-counter-total`              | Tarjeta contador "Total" del dashboard                          |
+| `sidebar`                              | Contenedor del sidebar de navegación (drawer en móvil)           |
+| `sidebar-toggle`                       | Botón hamburguesa del top bar que abre/cierra el sidebar        |
+| `sidebar-backdrop`                     | Fondo semitransparente del drawer del sidebar (solo móvil)      |
+| `nav-brand`                            | Logo/marca del sidebar (vuelve al dashboard)                    |
+| `nav-dashboard`                        | Link del sidebar al dashboard                                   |
+| `nav-issues`                           | Link del sidebar al listado                                     |
+| `nav-new-issue`                        | Link del sidebar a crear incidencia                             |
+| `dashboard-counter-total`              | Tarjeta contador "Total" del dashboard (con barra de progreso)  |
 | `dashboard-counter-open`               | Tarjeta contador "Abiertas"                                     |
 | `dashboard-counter-in-progress`        | Tarjeta contador "En progreso"                                  |
 | `dashboard-counter-closed`             | Tarjeta contador "Cerradas"                                     |
+| `dashboard-severity-report`            | Panel "Incidencias por severidad" (barras CSS)                  |
+| `dashboard-severity-{level}`           | Fila de severidad (`low`/`medium`/`high`/`critical`)            |
 | `dashboard-new-issue`                  | Botón "Crear incidencia" del dashboard                          |
 | `issues-new-issue`                     | Botón "Crear incidencia" del listado                            |
 | `filter-status`                        | Select de filtro por estado                                     |
