@@ -1,6 +1,7 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { BrowserRouter, Link, Route, Routes, useLocation } from 'react-router-dom'
-import NavBar from './components/NavBar'
+import Sidebar from './components/Sidebar'
+import TopBar from './components/TopBar'
 import { ToastProvider } from './hooks/useToast'
 import Dashboard from './pages/Dashboard'
 import IssueCreate from './pages/IssueCreate'
@@ -42,27 +43,41 @@ function NotFound() {
   )
 }
 
+/** App shell: fixed left sidebar + top bar + routed main content. */
+function AppShell() {
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const closeSidebar = useCallback(() => setSidebarOpen(false), [])
+  const toggleSidebar = useCallback(() => setSidebarOpen((value) => !value), [])
+
+  return (
+    <div className="app">
+      <Sidebar open={sidebarOpen} onClose={closeSidebar} />
+      <div className="content">
+        <TopBar sidebarOpen={sidebarOpen} onToggleSidebar={toggleSidebar} />
+        <main className="main">
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/issues" element={<IssuesList />} />
+            <Route path="/issues/new" element={<IssueCreate />} />
+            <Route path="/issues/:id" element={<IssueDetail />} />
+            <Route path="/issues/:id/edit" element={<IssueEdit />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </main>
+        <footer className="footer">
+          <span>BugTrack · Gestor de incidencias</span>
+        </footer>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <ToastProvider>
         <ScrollManager />
-        <div className="app">
-          <NavBar />
-          <main className="main">
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/issues" element={<IssuesList />} />
-              <Route path="/issues/new" element={<IssueCreate />} />
-              <Route path="/issues/:id" element={<IssueDetail />} />
-              <Route path="/issues/:id/edit" element={<IssueEdit />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </main>
-          <footer className="footer">
-            <span>BugTrack · Gestor de incidencias</span>
-          </footer>
-        </div>
+        <AppShell />
       </ToastProvider>
     </BrowserRouter>
   )
