@@ -1,0 +1,30 @@
+# --- Java / Maven ---
+target/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+
+# --- Node.js / React / Vite ---
+node_modules/
+dist/
+build/
+.vite/
+
+# --- Environment (never commit secrets) ---
+.env
+.env.local
+.env.*.local
+
+# --- IDE ---
+.idea/
+*.iml
+.vscode/
+!.vscode/extensions.json
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- Logs ---
+*.log
+logs/
