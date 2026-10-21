@@ -1,44 +1,19 @@
+import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import EmptyState from '../components/EmptyState'
+import Badge from '../components/Badge'
 import ErrorBanner from '../components/ErrorBanner'
 import Spinner from '../components/Spinner'
 import { useIssues } from '../hooks/useIssues'
-import { SEVERITIES, severityLabel } from '../utils/labels'
-
-const COUNTERS = [
-  {
-    key: 'total',
-    label: 'Total',
-    testId: 'dashboard-counter-total',
-    to: '/issues',
-    pick: () => true,
-    tone: 'counter--total',
-  },
-  {
-    key: 'open',
-    label: 'Abiertas',
-    testId: 'dashboard-counter-open',
-    to: '/issues?status=OPEN',
-    pick: (issue) => issue.status === 'OPEN',
-    tone: 'counter--open',
-  },
-  {
-    key: 'in-progress',
-    label: 'En progreso',
-    testId: 'dashboard-counter-in-progress',
-    to: '/issues?status=IN_PROGRESS',
-    pick: (issue) => issue.status === 'IN_PROGRESS',
-    tone: 'counter--progress',
-  },
-  {
-    key: 'closed',
-    label: 'Cerradas',
-    testId: 'dashboard-counter-closed',
-    to: '/issues?status=CLOSED',
-    pick: (issue) => issue.status === 'CLOSED',
-    tone: 'counter--closed',
-  },
-]
+import { onIssuesChanged } from '../utils/issueEvents'
+import { priorityTone, severityTone } from '../utils/badges'
+import {
+  PRIORITIES,
+  SEVERITIES,
+  SEVERITY_COLORS,
+  priorityLabel,
+  severityLabel,
+  statusLabel,
+} from '../utils/labels'
 
 /** Percentage of `value` relative to the total (0 when there are no issues). */
 function percent(value, total) {
@@ -48,30 +23,48 @@ function percent(value, total) {
 export default function Dashboard() {
   const { issues, loading, error, reload } = useIssues()
 
-  const counts = {
-    total: issues.length,
-    open: issues.filter((i) => i.status === 'OPEN').length,
-    'in-progress': issues.filter((i) => i.status === 'IN_PROGRESS').length,
-    closed: issues.filter((i) => i.status === 'CLOSED').length,
-  }
-  const total = counts.total
+  // Live counters: create / edit / status changes fire the app-wide signal.
+  useEffect(() => onIssuesChanged(reload), [reload])
 
-  const severityCounts = Object.fromEntries(
-    SEVERITIES.map((severity) => [
-      severity,
-      issues.filter((issue) => issue.severity === severity).length,
-    ]),
+  const total = issues.length
+  const open = issues.filter((issue) => issue.status === 'OPEN').length
+  const inProgress = issues.filter((issue) => issue.status === 'IN_PROGRESS').length
+  const closed = issues.filter((issue) => issue.status === 'CLOSED').length
+  const resolvedPct = percent(closed, total)
+
+  const severityRank = (value) => SEVERITIES.indexOf(value)
+  const priorityRank = (value) => PRIORITIES.indexOf(value)
+
+  // Not closed, severity HIGH or CRITICAL, worst first, top 4.
+  const attention = issues
+    .filter((issue) => issue.status !== 'CLOSED' && severityRank(issue.severity) >= severityRank('HIGH'))
+    .sort(
+      (a, b) =>
+        severityRank(b.severity) - severityRank(a.severity) ||
+        priorityRank(b.priority) - priorityRank(a.priority),
+    )
+    .slice(0, 4)
+
+  const severityCounts = SEVERITIES.map(
+    (severity) => issues.filter((issue) => issue.severity === severity).length,
+  )
+  const maxSeverity = Math.max(1, ...severityCounts)
+  const priorityCounts = PRIORITIES.map(
+    (priority) => issues.filter((issue) => issue.priority === priority).length,
   )
 
   return (
     <div className="page">
-      <header className="page__header">
+      <header className="head">
         <div>
-          <h1 className="page__title">Dashboard</h1>
-          <p className="page__subtitle">Resumen general de las incidencias del proyecto.</p>
+          <h1>Dashboard</h1>
+          <p className="sub">Resumen general de las incidencias del proyecto.</p>
+          <p className="substat">
+            Total: <span data-testid="dashboard-counter-total">{total}</span> incidencias
+          </p>
         </div>
         <Link className="btn btn--primary" to="/issues/new" data-testid="dashboard-new-issue">
-          Crear incidencia
+          + Crear incidencia
         </Link>
       </header>
 
@@ -84,71 +77,96 @@ export default function Dashboard() {
         />
       )}
 
-      {!loading && !error && issues.length === 0 && (
-        <EmptyState />
-      )}
-
-      {!loading && !error && issues.length > 0 && (
-        <>
-          <div className="counters">
-            {COUNTERS.map((counter) => {
-              const value = counts[counter.key]
-              const pct = percent(value, total)
-              return (
-                <Link
-                  key={counter.key}
-                  className={`counter ${counter.tone}`}
-                  to={counter.to}
-                  data-testid={counter.testId}
-                >
-                  <span className="counter__row">
-                    <span className="counter__value">{value}</span>
-                    <span className="counter__pct">{pct}%</span>
-                  </span>
-                  <span className="counter__label">{counter.label}</span>
-                  <span className="counter__bar" aria-hidden="true">
-                    <span className="counter__bar-fill" style={{ width: `${pct}%` }} />
-                  </span>
-                </Link>
-              )
-            })}
-          </div>
+      {!loading && !error && (
+        <div className="g">
+          <section
+            className="blk b5"
+            style={{ '--c': 'var(--lime)' }}
+            data-testid="dashboard-counter-closed"
+          >
+            <p className="k">Resuelto</p>
+            <p className="num">{resolvedPct}%</p>
+            <p>
+              {closed} de {total} incidencias cerradas
+            </p>
+          </section>
 
           <section
-            className="panel severity-report"
-            data-testid="dashboard-severity-report"
+            className="blk b3"
+            style={{ '--c': 'var(--vio)' }}
+            data-testid="dashboard-counter-open"
           >
-            <h2 className="panel__title">Incidencias por severidad</h2>
-            <ul className="severity-report__list">
-              {SEVERITIES.map((severity) => {
-                const value = severityCounts[severity]
-                const pct = percent(value, total)
-                return (
-                  <li
-                    key={severity}
-                    className="severity-report__row"
-                    data-testid={`dashboard-severity-${severity.toLowerCase()}`}
-                  >
-                    <span className="severity-report__label">{severityLabel(severity)}</span>
-                    <span
-                      className="severity-report__track"
-                      role="img"
-                      aria-label={`${value} de ${total} incidencias (${pct}%)`}
-                    >
-                      <span
-                        className={`severity-report__bar severity-report__bar--${severity.toLowerCase()}`}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </span>
-                    <span className="severity-report__count">
-                      {value} <span className="severity-report__pct">({pct}%)</span>
-                    </span>
-                  </li>
-                )
-              })}
-            </ul>
+            <p className="k">Abiertas</p>
+            <p className="num">{open}</p>
+            <p>esperando turno</p>
           </section>
-        </>
+
+          <section
+            className="blk b4"
+            style={{ '--c': 'var(--sun)' }}
+            data-testid="dashboard-counter-in-progress"
+          >
+            <p className="k">En progreso</p>
+            <p className="num">{inProgress}</p>
+            <p>en manos del equipo</p>
+          </section>
+
+          <section className="card b7">
+            <h2>Requieren atención</h2>
+            {attention.length > 0 ? (
+              <ul className="att">
+                {attention.map((issue) => (
+                  <li key={issue.id}>
+                    <Link to={`/issues/${issue.id}`}>
+                      <span>
+                        {issue.title}
+                        <small>
+                          #{issue.id} · {statusLabel(issue.status)}
+                        </small>
+                      </span>
+                      <Badge tone={severityTone(issue.severity)}>
+                        {severityLabel(issue.severity)}
+                      </Badge>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="sub">
+                Todo bajo control. No hay incidencias altas ni críticas abiertas.
+              </p>
+            )}
+          </section>
+
+          <section className="card b5" data-testid="dashboard-severity-report">
+            <h2>Por severidad</h2>
+            <div className="cols" role="img" aria-label="Incidencias por severidad">
+              {SEVERITIES.map((severity, index) => (
+                <div
+                  key={severity}
+                  className="col"
+                  data-testid={`dashboard-severity-${severity.toLowerCase()}`}
+                >
+                  <b>{severityCounts[index]}</b>
+                  <i
+                    style={{
+                      '--c': SEVERITY_COLORS[severity],
+                      height: `${(severityCounts[index] / maxSeverity) * 72}%`,
+                    }}
+                  />
+                  <span>{severityLabel(severity)}</span>
+                </div>
+              ))}
+            </div>
+            <div className="pri">
+              {PRIORITIES.map((priority, index) => (
+                <Badge key={priority} tone={priorityTone(priority)}>
+                  {priorityLabel(priority)} · {priorityCounts[index]}
+                </Badge>
+              ))}
+            </div>
+          </section>
+        </div>
       )}
     </div>
   )

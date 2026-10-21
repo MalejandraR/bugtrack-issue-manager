@@ -1,20 +1,25 @@
-import { useMemo } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, Outlet, useSearchParams } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
 import ErrorBanner from '../components/ErrorBanner'
 import Filters from '../components/Filters'
-import IssueCard from '../components/IssueCard'
-import IssueTable from '../components/IssueTable'
+import IssueRow from '../components/IssueRow'
 import Spinner from '../components/Spinner'
 import { useIssues } from '../hooks/useIssues'
-import { useMediaQuery } from '../hooks/useMediaQuery'
+import { onIssuesChanged } from '../utils/issueEvents'
 
-const MOBILE_QUERY = '(max-width: 767px)'
 const FILTER_KEYS = ['status', 'priority', 'severity']
 
 export default function IssuesList() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const isMobile = useMediaQuery(MOBILE_QUERY)
+  // Free-text search is component state (prototype's F.q); the selects stay
+  // in the URL so filtered views remain shareable.
+  const [query, setQuery] = useState('')
+
+  const { issues, loading, error, reload } = useIssues()
+
+  // Live rows: create / edit / status changes fire the app-wide signal.
+  useEffect(() => onIssuesChanged(reload), [reload])
 
   const values = useMemo(() => {
     const next = {}
@@ -22,7 +27,20 @@ export default function IssuesList() {
     return next
   }, [searchParams])
 
-  const { issues, loading, error, reload } = useIssues(values)
+  // The prototype filters the full collection client-side (the API list is
+  // unfiltered), which also gives us the "N de M" subtitle for free.
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase().replace('#', '')
+    return issues
+      .filter(
+        (issue) =>
+          (!values.status || issue.status === values.status) &&
+          (!values.priority || issue.priority === values.priority) &&
+          (!values.severity || issue.severity === values.severity) &&
+          (!q || issue.title.toLowerCase().includes(q) || String(issue.id) === q),
+      )
+      .sort((a, b) => b.id - a.id)
+  }, [issues, values, query])
 
   const setFilter = (key, value) => {
     const next = new URLSearchParams(searchParams)
@@ -32,26 +50,37 @@ export default function IssuesList() {
   }
 
   const clearFilters = () => {
+    setQuery('')
     setSearchParams({}, { replace: true })
   }
 
-  const hasFilters = FILTER_KEYS.some((key) => values[key])
+  const hasFilters = FILTER_KEYS.some((key) => values[key]) || Boolean(query)
 
   return (
     <div className="page">
-      <header className="page__header">
+      <header className="head">
         <div>
-          <h1 className="page__title">Incidencias</h1>
-          <p className="page__subtitle">
-            {loading ? 'Cargando…' : `${issues.length} ${issues.length === 1 ? 'incidencia' : 'incidencias'}`}
+          <h1>Incidencias</h1>
+          <p className="sub">
+            {loading
+              ? 'Cargando…'
+              : `${visible.length} ${visible.length === 1 ? 'incidencia' : 'incidencias'}${
+                  visible.length !== issues.length ? ` de ${issues.length}` : ''
+                }`}
           </p>
         </div>
         <Link className="btn btn--primary" to="/issues/new" data-testid="issues-new-issue">
-          Crear incidencia
+          + Crear incidencia
         </Link>
       </header>
 
-      <Filters values={values} onChange={setFilter} onClear={clearFilters} />
+      <Filters
+        query={query}
+        onQueryChange={setQuery}
+        values={values}
+        onChange={setFilter}
+        onClear={clearFilters}
+      />
 
       {loading && <Spinner label="Cargando incidencias…" />}
 
@@ -62,29 +91,28 @@ export default function IssuesList() {
         />
       )}
 
-      {!loading && !error && issues.length === 0 && hasFilters && (
+      {!loading && !error && visible.length === 0 && hasFilters && (
         <EmptyState
-          title="Sin resultados"
-          message="Ninguna incidencia coincide con los filtros aplicados."
+          title="Nada por aquí"
+          message="Ninguna incidencia coincide con los filtros."
           actionLabel="Limpiar filtros"
-          actionTo="/issues"
+          onAction={clearFilters}
           actionTestId="empty-state-clear"
         />
       )}
 
-      {!loading && !error && issues.length === 0 && !hasFilters && <EmptyState />}
+      {!loading && !error && visible.length === 0 && !hasFilters && <EmptyState />}
 
-      {!loading && !error && issues.length > 0 && (
-        isMobile ? (
-          <div className="issue-cards">
-            {issues.map((issue) => (
-              <IssueCard key={issue.id} issue={issue} />
-            ))}
-          </div>
-        ) : (
-          <IssueTable issues={issues} />
-        )
+      {!loading && !error && visible.length > 0 && (
+        <div className="list">
+          {visible.map((issue) => (
+            <IssueRow key={issue.id} issue={issue} />
+          ))}
+        </div>
       )}
+
+      {/* `/issues/:id` renders the detail drawer on top of the list. */}
+      <Outlet />
     </div>
   )
 }

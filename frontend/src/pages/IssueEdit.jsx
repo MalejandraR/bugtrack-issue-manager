@@ -6,6 +6,7 @@ import Spinner from '../components/Spinner'
 import { useToast } from '../hooks/useToast'
 import { useIssue } from '../hooks/useIssue'
 import { api } from '../services/api'
+import { notifyIssuesChanged } from '../utils/issueEvents'
 
 export default function IssueEdit() {
   const { id } = useParams()
@@ -16,12 +17,13 @@ export default function IssueEdit() {
   const handleSubmit = async (values) => {
     await api.updateIssue(id, values)
     showToast('Incidencia actualizada correctamente.')
+    notifyIssuesChanged()
     navigate(`/issues/${id}`)
   }
 
   if (loading) {
     return (
-      <div className="page page--narrow">
+      <div className="page">
         <Spinner label="Cargando incidencia…" />
       </div>
     )
@@ -29,7 +31,7 @@ export default function IssueEdit() {
 
   if (notFound) {
     return (
-      <div className="page page--narrow" data-testid="issue-not-found">
+      <div className="page" data-testid="issue-not-found">
         <EmptyState
           title="La incidencia no existe"
           message={`No encontramos ninguna incidencia con id ${id}.`}
@@ -43,7 +45,7 @@ export default function IssueEdit() {
 
   if (error || !issue) {
     return (
-      <div className="page page--narrow">
+      <div className="page">
         <ErrorBanner
           message={`No se pudo cargar la incidencia: ${error?.message ?? 'error desconocido'}`}
           onRetry={reload}
@@ -53,16 +55,13 @@ export default function IssueEdit() {
   }
 
   return (
-    <div className="page page--narrow">
-      <header className="page__header">
+    <div className="page">
+      <header className="head">
         <div>
-          <p className="page__eyebrow">
-            Editando incidencia <span data-testid="issue-edit-id">#{issue.id}</span>
-          </p>
-          <h1 className="page__title">{issue.title}</h1>
-          <p className="page__subtitle">
-            El estado se cambia desde la pantalla de detalle.
-          </p>
+          <h1>
+            Editar incidencia <span data-testid="issue-edit-id">#{issue.id}</span>
+          </h1>
+          <p className="sub">Actualiza los datos del problema.</p>
         </div>
       </header>
 

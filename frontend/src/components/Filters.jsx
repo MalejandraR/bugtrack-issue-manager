@@ -1,82 +1,82 @@
 import { PRIORITIES, SEVERITIES, STATUSES, priorityLabel, severityLabel, statusLabel } from '../utils/labels'
 
-/** Combinable status/priority/severity filters plus a reset action. */
-export default function Filters({ values, onChange, onClear }) {
-  const hasFilters = Boolean(values.status || values.priority || values.severity)
+/**
+ * Tools row of the list (prototype's `.tools`): free-text search plus the
+ * status/priority/severity selects and the reset button. The search text is
+ * local state (prototype's `F.q`); the selects mirror the URL params.
+ */
+export default function Filters({ query, onQueryChange, values, onChange, onClear }) {
+  const hasFilters = Boolean(query || values.status || values.priority || values.severity)
 
   return (
-    <section className="filters" aria-label="Filtros de incidencias">
-      <div className="filters__group">
-        <div className="field field--inline">
-          <label className="field__label" htmlFor="filter-status">
-            Estado
-          </label>
-          <select
-            id="filter-status"
-            className="select"
-            value={values.status}
-            onChange={(event) => onChange('status', event.target.value)}
-            data-testid="filter-status"
-          >
-            <option value="">Todos</option>
-            {STATUSES.map((value) => (
-              <option key={value} value={value}>
-                {statusLabel(value)}
-              </option>
-            ))}
-          </select>
-        </div>
+    <div className="tools">
+      <input
+        className="in"
+        id="filter-q"
+        type="search"
+        placeholder="Buscar por título o #ID"
+        aria-label="Buscar"
+        value={query}
+        onChange={(event) => onQueryChange(event.target.value)}
+      />
 
-        <div className="field field--inline">
-          <label className="field__label" htmlFor="filter-priority">
-            Prioridad
-          </label>
-          <select
-            id="filter-priority"
-            className="select"
-            value={values.priority}
-            onChange={(event) => onChange('priority', event.target.value)}
-            data-testid="filter-priority"
-          >
-            <option value="">Todas</option>
-            {PRIORITIES.map((value) => (
-              <option key={value} value={value}>
-                {priorityLabel(value)}
-              </option>
-            ))}
-          </select>
-        </div>
+      <select
+        className="sel"
+        id="filter-status"
+        aria-label="Estado"
+        value={values.status}
+        onChange={(event) => onChange('status', event.target.value)}
+        data-testid="filter-status"
+      >
+        <option value="">Todos los estados</option>
+        {STATUSES.map((value) => (
+          <option key={value} value={value}>
+            {statusLabel(value)}
+          </option>
+        ))}
+      </select>
 
-        <div className="field field--inline">
-          <label className="field__label" htmlFor="filter-severity">
-            Severidad
-          </label>
-          <select
-            id="filter-severity"
-            className="select"
-            value={values.severity}
-            onChange={(event) => onChange('severity', event.target.value)}
-            data-testid="filter-severity"
-          >
-            <option value="">Todas</option>
-            {SEVERITIES.map((value) => (
-              <option key={value} value={value}>
-                {severityLabel(value)}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      <select
+        className="sel"
+        id="filter-priority"
+        aria-label="Prioridad"
+        value={values.priority}
+        onChange={(event) => onChange('priority', event.target.value)}
+        data-testid="filter-priority"
+      >
+        <option value="">Todas las prioridades</option>
+        {PRIORITIES.map((value) => (
+          <option key={value} value={value}>
+            {priorityLabel(value)}
+          </option>
+        ))}
+      </select>
+
+      <select
+        className="sel"
+        id="filter-severity"
+        aria-label="Severidad"
+        value={values.severity}
+        onChange={(event) => onChange('severity', event.target.value)}
+        data-testid="filter-severity"
+      >
+        <option value="">Todas las severidades</option>
+        {SEVERITIES.map((value) => (
+          <option key={value} value={value}>
+            {severityLabel(value)}
+          </option>
+        ))}
+      </select>
 
       <button
         type="button"
-        className="btn btn--ghost"
+        className="btn"
         onClick={onClear}
         disabled={!hasFilters}
         data-testid="filter-clear"
       >
-        Limpiar filtros
+        Limpiar
       </button>
-    </section>
+    </div>
   )
 }
