@@ -24,6 +24,28 @@ export const STATUS_LABELS = {
   CLOSED: 'Cerrada',
 }
 
+// NEObutalism palette taken from the HTML prototype (single source of the
+// enum → color mapping: badges, status selects and radio pills all read it).
+export const SEVERITY_COLORS = {
+  LOW: '#C6F432',
+  MEDIUM: '#6EC6FF',
+  HIGH: '#FFA23A',
+  CRITICAL: '#FF5C7A',
+}
+
+export const PRIORITY_COLORS = {
+  LOW: '#E4E1F5',
+  MEDIUM: '#CFC6FF',
+  HIGH: '#B7A6FF',
+  URGENT: '#9A85FF',
+}
+
+export const STATUS_COLORS = {
+  OPEN: '#B7A6FF',
+  IN_PROGRESS: '#FFD43B',
+  CLOSED: '#C6F432',
+}
+
 export function severityLabel(value) {
   return SEVERITY_LABELS[value] ?? value ?? '—'
 }
@@ -43,7 +65,9 @@ const DATE_TIME_FORMAT = new Intl.DateTimeFormat('es-CO', {
 })
 
 const DATE_FORMAT = new Intl.DateTimeFormat('es-CO', {
-  dateStyle: 'medium',
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
   timeZone: 'America/Bogota',
 })
 
@@ -55,6 +79,7 @@ export function formatDateTime(iso) {
   return DATE_TIME_FORMAT.format(date)
 }
 
+/** Formats an ISO-8601 UTC string as "20/10/2026" (Colombia date). */
 export function formatDate(iso) {
   if (!iso) return '—'
   const date = new Date(iso)

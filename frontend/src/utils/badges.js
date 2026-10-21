@@ -1,4 +1,6 @@
-// Maps enum values to badge modifier classes so table and cards stay in sync.
+// Maps enum values to badge modifier classes so rows, cards and the drawer
+// stay in sync. The actual colors live in utils/labels.js (single source).
+import { PRIORITY_COLORS, SEVERITY_COLORS, STATUS_COLORS } from './labels'
 
 export function statusTone(status) {
   if (status === 'OPEN') return 'status-open'
@@ -21,4 +23,20 @@ export function priorityTone(priority) {
   if (priority === 'MEDIUM') return 'priority-medium'
   if (priority === 'LOW') return 'priority-low'
   return 'neutral'
+}
+
+/** Badge tone → CSS custom property value applied as `--c` on the chip. */
+export const TONE_COLORS = {
+  neutral: 'var(--surf2)',
+  'status-open': STATUS_COLORS.OPEN,
+  'status-progress': STATUS_COLORS.IN_PROGRESS,
+  'status-closed': STATUS_COLORS.CLOSED,
+  'severity-low': SEVERITY_COLORS.LOW,
+  'severity-medium': SEVERITY_COLORS.MEDIUM,
+  'severity-high': SEVERITY_COLORS.HIGH,
+  'severity-critical': SEVERITY_COLORS.CRITICAL,
+  'priority-low': PRIORITY_COLORS.LOW,
+  'priority-medium': PRIORITY_COLORS.MEDIUM,
+  'priority-high': PRIORITY_COLORS.HIGH,
+  'priority-urgent': PRIORITY_COLORS.URGENT,
 }
