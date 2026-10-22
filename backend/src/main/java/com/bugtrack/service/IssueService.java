@@ -80,4 +80,14 @@ public class IssueService {
         issue.setStatus(status);
         return issueRepository.save(issue);
     }
+
+    /**
+     * Deletes an issue. Throws {@link ResourceNotFoundException} when the id does
+     * not exist, so the controller surfaces 404 instead of a silent success.
+     */
+    @Transactional
+    public void delete(Long id) {
+        Issue issue = getById(id);
+        issueRepository.delete(issue);
+    }
 }

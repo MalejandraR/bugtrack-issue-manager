@@ -97,6 +97,11 @@ Para generar el jar: `mvn clean package`.
 | POST | `/api/issues` | Crea un issue (siempre nace `OPEN`) → **201** + `Location` | 400 (validación) |
 | PUT | `/api/issues/{id}` | Actualiza título/descripción/severity/priority | 400, 404 |
 | PATCH | `/api/issues/{id}/status` | Cambia el estado → body `{"status":"IN_PROGRESS"}` | 400, 404 |
+| DELETE | `/api/issues/{id}` | Elimina un issue → **204 No Content** | 404 |
+
+> **Por qué existe `DELETE`**: permite limpiar datos de prueba entre corridas de los
+> tests E2E, para que sean reproducibles (cada ejecución parte de un estado conocido).
+> No hay UI asociada; es un endpoint solo de API.
 
 Valores válidos:
 
