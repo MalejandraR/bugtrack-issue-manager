@@ -4,8 +4,9 @@ spring:
 
   # Local PostgreSQL 16 runs on port 5436 (5432-5435 are taken by legacy installs).
   # The password is NEVER defaulted here: it must come from the environment (.env).
+  # Render injects JDBC_DATABASE_URL automatically when a Postgres instance is attached.
   datasource:
-    url: ${BUGTRACK_DB_URL:jdbc:postgresql://127.0.0.1:5436/bugtrack}
+    url: ${BUGTRACK_DB_URL:${JDBC_DATABASE_URL:jdbc:postgresql://127.0.0.1:5436/bugtrack}}
     username: ${BUGTRACK_DB_USERNAME:bugtrack}
     password: ${BUGTRACK_DB_PASSWORD:}
 
@@ -23,7 +24,10 @@ spring:
     init:
       mode: always
       # Requires running the app from backend/ (relative path).
-      schema-locations: file:../database/schema.sql
+      # Render runs with rootDir=backend, so the same relative path resolves there;
+      # the env var exists as a safety override for any other layout.
+      schema-locations: ${BUGTRACK_SCHEMA_LOCATION:file:../database/schema.sql}
 
 server:
-  port: 8080
+  # Render/Heroku-style platforms inject their own port via $PORT.
+  port: ${PORT:8080}
