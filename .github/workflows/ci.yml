@@ -200,3 +200,16 @@ jobs:
       - name: Run Cypress E2E
         working-directory: frontend
         run: npx cypress run
+
+  # ---------------------------------------------------------------------------
+  # 4) Backend Docker image: proves the production Dockerfile builds. This is
+  #    the same image Render builds from render.yaml (runtime: docker).
+  # ---------------------------------------------------------------------------
+  backend-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: docker build -t bugtrack-backend:ci .

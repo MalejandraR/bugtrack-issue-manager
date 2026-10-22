@@ -1,25 +1,22 @@
 # Render Blueprint — infrastructure as code.
-# Creates the backend web service + a free Postgres instance.
-# The frontend is deployed separately on Vercel.
+# Creates the backend web service (Docker) + a free Postgres instance.
+# Render has no native Java runtime; Docker is the official path for JVM apps.
 services:
   - type: web
     name: bugtrack-backend
-    runtime: java
+    runtime: docker
     plan: free
-    # Build/start run inside backend/; ../database/schema.sql still resolves
-    # to the repo-root database/ directory (the schema's single source of truth).
-    rootDir: backend
-    buildCommand: mvn -B -DskipTests clean package
-    startCommand: java -jar target/*.jar
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     healthCheckPath: /api/health
     envVars:
-      # Render attaches the Postgres instance and injects JDBC_DATABASE_URL,
-      # PGUSER and PGPASSWORD; application.yml reads them automatically.
+      # Set after the Vercel frontend URL is known (e.g. https://bugtrack.vercel.app).
+      # Editable later in the Render dashboard (Environment tab).
       - key: CORS_ALLOWED_ORIGINS
-        # Set after the Vercel frontend URL is known (e.g. https://bugtrack.vercel.app).
         value: ""
 
 databases:
   - name: bugtrack-db
     plan: free
-    database: bugtrack
+    databaseName: bugtrack
+    user: bugtrack
