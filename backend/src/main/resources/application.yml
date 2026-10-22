@@ -2,11 +2,14 @@ spring:
   application:
     name: bugtrack-backend
 
-  # Local PostgreSQL 16 runs on port 5436 (5432-5435 are taken by legacy installs).
-  # The password is NEVER defaulted here: it must come from the environment (.env).
-  # Render injects JDBC_DATABASE_URL automatically when a Postgres instance is attached.
+  # Resolution chain for the datasource:
+  #   1. BUGTRACK_DB_URL          — full JDBC URL (local .env, CI).
+  #   2. JDBC_DATABASE_URL        — injected by some platforms (Heroku-style).
+  #   3. BUGTRACK_DB_HOST/PORT/NAME — discrete Render Postgres vars wired via
+  #      fromDatabase in render.yaml (Render provides no JDBC-form URL).
+  # The password is NEVER defaulted here: it must come from the environment.
   datasource:
-    url: ${BUGTRACK_DB_URL:${JDBC_DATABASE_URL:jdbc:postgresql://127.0.0.1:5436/bugtrack}}
+    url: ${BUGTRACK_DB_URL:${JDBC_DATABASE_URL:jdbc:postgresql://${BUGTRACK_DB_HOST:127.0.0.1}:${BUGTRACK_DB_PORT:5436}/${BUGTRACK_DB_NAME:bugtrack}}}
     username: ${BUGTRACK_DB_USERNAME:bugtrack}
     password: ${BUGTRACK_DB_PASSWORD:}
 
