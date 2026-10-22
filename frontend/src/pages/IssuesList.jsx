@@ -61,7 +61,7 @@ export default function IssuesList() {
       <header className="head">
         <div>
           <h1>Incidencias</h1>
-          <p className="sub">
+          <p className="sub" data-testid="issues-count-subtitle">
             {loading
               ? 'Cargando…'
               : `${visible.length} ${visible.length === 1 ? 'incidencia' : 'incidencias'}${

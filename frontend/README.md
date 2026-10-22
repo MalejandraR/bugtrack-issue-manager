@@ -127,6 +127,7 @@ Los tests automatizados (Cypress, Fase 4) encuentran los elementos por
 | `filter-priority`                      | Select de filtro por prioridad                                  |
 | `filter-severity`                      | Select de filtro por severidad                                  |
 | `filter-clear`                         | Botón "Limpiar" (deshabilitado sin filtros ni búsqueda)         |
+| `issues-count-subtitle`                | Subtítulo del listado con el conteo ("N incidencias [de M]")     |
 | `issue-row-{id}`                       | Fila de incidencia (tarjeta `.it`)                              |
 | `issue-title-{id}`                     | Título (botón que abre el drawer) dentro de la fila             |
 | `issue-severity-{id}`                  | Badge de severidad en la fila                                   |
