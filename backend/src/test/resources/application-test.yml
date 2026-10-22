@@ -1,17 +1,21 @@
 # Test profile — activated with @ActiveProfiles("test") on integration tests.
 #
 # WHY THE PASSWORD HAS A DEFAULT HERE (and ONLY here):
-# `mvn test` must run without sourcing backend/.env, so a missing BUGTRACK_DB_PASSWORD
-# must not break the build. The fallback points at the throwaway local database
+# `mvn test` must run without sourcing backend/.env, so a missing test password must
+# not break the build. The fallback points at the throwaway local database
 # `bugtrack_test` (port 5436), which holds no real data and is recreated/cleaned by the
 # test lifecycle. Every other profile (application.yml) keeps the password MANDATORY
 # with no fallback, so the real database can never be reached with an implicit secret.
-# To override: `BUGTRACK_DB_PASSWORD=... mvn test`.
+#
+# All three values are env-overridable so CI can point the tests at its own Postgres
+# service (e.g. port 5432 on ubuntu-latest) without editing this file. The defaults
+# preserve the local developer setup. Override example:
+#   BUGTRACK_TEST_DB_URL=jdbc:postgresql://localhost:5432/bugtrack_test mvn test
 spring:
   datasource:
-    url: jdbc:postgresql://127.0.0.1:5436/bugtrack_test
-    username: bugtrack
-    password: ${BUGTRACK_DB_PASSWORD:bugtrack-local-2026}
+    url: ${BUGTRACK_TEST_DB_URL:jdbc:postgresql://127.0.0.1:5436/bugtrack_test}
+    username: ${BUGTRACK_TEST_DB_USERNAME:bugtrack}
+    password: ${BUGTRACK_TEST_DB_PASSWORD:bugtrack-local-2026}
 
   jpa:
     hibernate:
