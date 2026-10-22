@@ -425,7 +425,7 @@ lsof -ti :8080 | xargs kill   # apagar el backend
 - **Resultado de `mvn -q clean test`:** código de salida **0**.
 - **Resultado de la corrida final `mvn -B clean test`:** `BUILD SUCCESS`.
 
-### Resumen Surefire (verbatim, corrida final `mvn -B clean test`)
+### Resumen Surefire (verbatim, corrida del 2026-10-21 17:57 `mvn -B clean test`)
 
 ```text
 [INFO] Running com.bugtrack.controller.IssueApiIntegrationTest
@@ -442,6 +442,16 @@ lsof -ti :8080 | xargs kill   # apagar el backend
 [INFO] Total time:  37.808 s
 [INFO] Finished at: 2026-10-21T17:57:48-05:00
 [INFO] ------------------------------------------------------------------------
+```
+
+**Corrida posterior (misma fecha, tras agregar los 2 tests de 405/415 en `0ba4160` y la parametrización de variables de entorno del datasource de test):**
+
+```text
+[INFO] Tests run: 21, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 16.73 s -- in com.bugtrack.controller.IssueApiIntegrationTest
+[INFO] Tests run: 17, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.204 s -- in com.bugtrack.service.IssueServiceTest
+[INFO] Results:
+[INFO] Tests run: 38, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
 ```
 
 ### Verificación en vivo del endpoint DELETE (2026-10-21, backend en :8080)
