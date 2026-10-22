@@ -1,0 +1,202 @@
+# CI for BugTrack — backend tests, frontend build, and E2E (Cypress).
+#
+# Design notes:
+# - Three independent jobs so a frontend failure never hides a backend regression
+#   (and vice versa). The E2E job owns its own Postgres service: it does NOT depend
+#   on backend-tests, so jobs run in parallel and each one is self-contained.
+# - The test datasource is overridable via env vars (see backend/src/test/resources/
+#   application-test.yml), which is exactly what lets CI use Postgres on 5432 while
+#   local development keeps 5436.
+# - No deploy steps and no secrets on purpose: this workflow only proves the code
+#   builds and the suites pass.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1) Backend: unit (17) + integration (21) tests against a real PostgreSQL 16.
+  #    The schema comes from database/schema.sql via the relative path
+  #    file:../database/schema.sql, which works because Maven runs with
+  #    backend/ as the working directory.
+  # ---------------------------------------------------------------------------
+  backend-tests:
+    runs-on: ubuntu-latest
+
+    services:
+      # Container-level Postgres for the integration tests.
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: bugtrack
+          POSTGRES_PASSWORD: bugtrack-local-2026
+          POSTGRES_DB: bugtrack_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      # Checkout the repository.
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Java 21 (Temurin) with Maven dependency caching.
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # Point the test profile at the CI Postgres service (port 5432 here,
+      # 5436 is the local-machine quirk). Username/password match the service.
+      - name: Run backend tests
+        working-directory: backend
+        env:
+          BUGTRACK_TEST_DB_URL: jdbc:postgresql://localhost:5432/bugtrack_test
+          BUGTRACK_TEST_DB_USERNAME: bugtrack
+          BUGTRACK_TEST_DB_PASSWORD: bugtrack-local-2026
+        run: mvn -B -q clean test
+
+  # ---------------------------------------------------------------------------
+  # 2) Frontend: production build only (Vite). The unit of proof here is
+  #    "the SPA compiles and bundles"; E2E behavior lives in the e2e job.
+  # ---------------------------------------------------------------------------
+  frontend-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Node 24 with npm caching keyed on package-lock.json.
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # Clean install from the lockfile, then the production build.
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
+  # ---------------------------------------------------------------------------
+  # 3) E2E: real backend jar + Vite dev server + Cypress (13 specs).
+  #    Independent from backend-tests (own Postgres service) so it can run in
+  #    parallel; failures here mean a full-stack regression, not a unit issue.
+  # ---------------------------------------------------------------------------
+  e2e:
+    runs-on: ubuntu-latest
+
+    services:
+      # Same Postgres setup as backend-tests, but the RUNTIME app (not the
+      # test profile) also points here via BUGTRACK_DB_* env vars.
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: bugtrack
+          POSTGRES_PASSWORD: bugtrack-local-2026
+          POSTGRES_DB: bugtrack_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # Build the Spring Boot jar (skip tests: backend-tests already ran them).
+      - name: Package backend
+        working-directory: backend
+        run: mvn -B -q -DskipTests package
+
+      # Start the backend in the background. The runtime datasource env vars
+      # (BUGTRACK_DB_URL/USERNAME/PASSWORD) are the ones application.yml reads;
+      # SERVER_PORT=8080 is explicit even though it is also the yml default.
+      # schema.sql loads because the jar is launched from backend/.
+      - name: Start backend
+        working-directory: backend
+        env:
+          SERVER_PORT: '8080'
+          BUGTRACK_DB_URL: jdbc:postgresql://localhost:5432/bugtrack_test
+          BUGTRACK_DB_USERNAME: bugtrack
+          BUGTRACK_DB_PASSWORD: bugtrack-local-2026
+        run: |
+          java -jar target/*.jar > /tmp/bugtrack-backend.log 2>&1 &
+
+      # Wait until /api/health answers 200 (max ~90s), then fail loudly if not.
+      - name: Wait for backend
+        run: |
+          for i in $(seq 1 45); do
+            if curl -sf http://localhost:8080/api/health > /dev/null; then
+              echo "Backend is up (attempt $i)"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Backend did not become healthy in time"
+          tail -n 200 /tmp/bugtrack-backend.log
+          exit 1
+
+      # Frontend deps + Vite dev server (the Cypress baseUrl default is
+      # http://localhost:5173, already set in cypress.config.js).
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Start frontend dev server
+        working-directory: frontend
+        run: |
+          npm run dev > /tmp/bugtrack-frontend.log 2>&1 &
+
+      - name: Wait for frontend
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:5173 > /dev/null; then
+              echo "Frontend is up (attempt $i)"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Frontend did not become reachable in time"
+          tail -n 200 /tmp/bugtrack-frontend.log
+          exit 1
+
+      # Run the Cypress suite headless (Electron). Cleanup is implicit: the
+      # runner is ephemeral, so background processes die with the job.
+      - name: Run Cypress E2E
+        working-directory: frontend
+        run: npx cypress run
