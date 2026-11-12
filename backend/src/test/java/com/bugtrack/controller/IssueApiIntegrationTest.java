@@ -5,11 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -20,7 +16,9 @@ import com.bugtrack.entity.Issue;
 import com.bugtrack.entity.Priority;
 import com.bugtrack.entity.Severity;
 import com.bugtrack.entity.Status;
+import com.bugtrack.entity.User;
 import com.bugtrack.repository.IssueRepository;
+import com.bugtrack.repository.UserRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -31,10 +29,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 /**
  * Integration tests for the issue API: full Spring context + MockMvc against a real
@@ -42,7 +44,8 @@ import org.springframework.test.web.servlet.MvcResult;
  *
  * <p>The suite is order-independent: every test wipes the {@code issues} table both
  * before and after running, so any execution order (and any re-run) starts from a
- * known state.</p>
+ * known state. Since Fase 7 every write performs a real API login first and carries
+ * the resulting Bearer token; GETs stay tokenless on purpose — reads are public.</p>
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -62,9 +65,19 @@ class IssueApiIntegrationTest {
     @Autowired
     private IssueRepository issueRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    /** Bearer token of a real POST /api/auth/login, attached to every write. */
+    private String token;
+
     @BeforeEach
-    void cleanBefore() {
+    void cleanBeforeAndLogin() throws Exception {
         issueRepository.deleteAll();
+        loginAsTestUser();
     }
 
     @AfterEach
@@ -73,6 +86,49 @@ class IssueApiIntegrationTest {
     }
 
     // ------------------------------------------------------------------ helpers
+
+    /**
+     * Closed registration: the suite creates its own account (the startup seed finds
+     * no AUTH_ADMIN_* env vars under the test profile) and obtains a real token, so
+     * the protected endpoints are exercised exactly like the frontend does.
+     */
+    private void loginAsTestUser() throws Exception {
+        String email = "issues-it@bugtrack.local";
+        String password = "Issues-It-2026!";
+        if (userRepository.findByEmailIgnoreCase(email).isEmpty()) {
+            userRepository.save(new User(email, passwordEncoder.encode(password)));
+        }
+
+        MvcResult login = mockMvc.perform(MockMvcRequestBuilders.post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"%s\",\"password\":\"%s\"}".formatted(email, password)))
+                .andExpect(status().isOk())
+                .andReturn();
+        token = objectMapper.readTree(login.getResponse().getContentAsString(StandardCharsets.UTF_8))
+                .get("token")
+                .asText();
+    }
+
+    /** Every mutating request goes through here → Authorization: Bearer. */
+    private MockHttpServletRequestBuilder withAuth(MockHttpServletRequestBuilder builder) {
+        return builder.header(HttpHeaders.AUTHORIZATION, "Bearer " + token);
+    }
+
+    private MockHttpServletRequestBuilder postAuth(String url) {
+        return withAuth(MockMvcRequestBuilders.post(url));
+    }
+
+    private MockHttpServletRequestBuilder putAuth(String url) {
+        return withAuth(MockMvcRequestBuilders.put(url));
+    }
+
+    private MockHttpServletRequestBuilder patchAuth(String url) {
+        return withAuth(MockMvcRequestBuilders.patch(url));
+    }
+
+    private MockHttpServletRequestBuilder deleteAuth(String url) {
+        return withAuth(MockMvcRequestBuilders.delete(url));
+    }
 
     private static String issueJson(String title, String description,
                                     String severity, String priority) {
@@ -87,7 +143,7 @@ class IssueApiIntegrationTest {
 
     /** Creates an issue through the API and returns its id (asserts 201). */
     private long createViaApi(String title, Severity severity, Priority priority) throws Exception {
-        MvcResult result = mockMvc.perform(post(ISSUES)
+        MvcResult result = mockMvc.perform(postAuth(ISSUES)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(issueJson(title, "Description of " + title,
                                 severity.name(), priority.name())))
@@ -116,7 +172,7 @@ class IssueApiIntegrationTest {
     @Test
     @DisplayName("POST a valid issue returns 201, Location and an OPEN issue body")
     void postValid_returns201WithLocationAndOpenBody() throws Exception {
-        MvcResult result = mockMvc.perform(post(ISSUES)
+        MvcResult result = mockMvc.perform(postAuth(ISSUES)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validJson()))
                 .andExpect(status().isCreated())
@@ -141,7 +197,7 @@ class IssueApiIntegrationTest {
     @Test
     @DisplayName("POST with a blank title returns 400 with fieldErrors.title")
     void postBlankTitle_returns400WithFieldError() throws Exception {
-        mockMvc.perform(post(ISSUES)
+        mockMvc.perform(postAuth(ISSUES)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(issueJson("   ", "Valid description", "LOW", "LOW")))
                 .andExpect(status().isBadRequest())
@@ -154,7 +210,7 @@ class IssueApiIntegrationTest {
     @Test
     @DisplayName("POST with an unknown severity enum returns 400 'Malformed request body'")
     void postInvalidSeverityEnum_returns400MalformedBody() throws Exception {
-        mockMvc.perform(post(ISSUES)
+        mockMvc.perform(postAuth(ISSUES)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(issueJson("Bad enum", "Valid description", "BOGUS", "LOW")))
                 .andExpect(status().isBadRequest())
@@ -165,7 +221,7 @@ class IssueApiIntegrationTest {
     @Test
     @DisplayName("POST with a 201-character title returns 400 (max 200)")
     void postTooLongTitle_returns400() throws Exception {
-        mockMvc.perform(post(ISSUES)
+        mockMvc.perform(postAuth(ISSUES)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(issueJson("x".repeat(201), "Valid description", "LOW", "LOW")))
                 .andExpect(status().isBadRequest())
@@ -270,7 +326,7 @@ class IssueApiIntegrationTest {
     @DisplayName("PUT updates the fields, preserves the status and refreshes updatedAt")
     void putValid_returns200KeepsStatusAndTouchesUpdatedAt() throws Exception {
         long id = createViaApi("Original title", Severity.LOW, Priority.LOW);
-        mockMvc.perform(patch(ISSUES + "/" + id + "/status")
+        mockMvc.perform(patchAuth(ISSUES + "/" + id + "/status")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"status\":\"IN_PROGRESS\"}"))
                 .andExpect(status().isOk());
@@ -281,7 +337,7 @@ class IssueApiIntegrationTest {
         String createdAtBefore = readTree(before).get("createdAt").asText();
         String updatedAtBefore = readTree(before).get("updatedAt").asText();
 
-        MvcResult result = mockMvc.perform(put(ISSUES + "/" + id)
+        MvcResult result = mockMvc.perform(putAuth(ISSUES + "/" + id)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(issueJson("Renamed title", "New description", "CRITICAL", "HIGH")))
                 .andExpect(status().isOk())
@@ -301,7 +357,7 @@ class IssueApiIntegrationTest {
     @Test
     @DisplayName("PUT of a missing id returns 404")
     void putMissing_returns404() throws Exception {
-        mockMvc.perform(put(ISSUES + "/" + MISSING_ID)
+        mockMvc.perform(putAuth(ISSUES + "/" + MISSING_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validJson()))
                 .andExpect(status().isNotFound())
@@ -315,7 +371,7 @@ class IssueApiIntegrationTest {
     void patchStatus_returns200WithNewStatus() throws Exception {
         long id = createViaApi("Patch me", Severity.HIGH, Priority.HIGH);
 
-        mockMvc.perform(patch(ISSUES + "/" + id + "/status")
+        mockMvc.perform(patchAuth(ISSUES + "/" + id + "/status")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"status\":\"CLOSED\"}"))
                 .andExpect(status().isOk())
@@ -326,7 +382,7 @@ class IssueApiIntegrationTest {
     @Test
     @DisplayName("PATCH status on a missing id returns 404")
     void patchStatusMissing_returns404() throws Exception {
-        mockMvc.perform(patch(ISSUES + "/" + MISSING_ID + "/status")
+        mockMvc.perform(patchAuth(ISSUES + "/" + MISSING_ID + "/status")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"status\":\"CLOSED\"}"))
                 .andExpect(status().isNotFound())
@@ -338,7 +394,7 @@ class IssueApiIntegrationTest {
     void patchNullStatus_returns400() throws Exception {
         long id = createViaApi("Null status", Severity.LOW, Priority.LOW);
 
-        mockMvc.perform(patch(ISSUES + "/" + id + "/status")
+        mockMvc.perform(patchAuth(ISSUES + "/" + id + "/status")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"status\":null}"))
                 .andExpect(status().isBadRequest())
@@ -353,7 +409,7 @@ class IssueApiIntegrationTest {
     void deleteThenGet_returns204Then404() throws Exception {
         long id = createViaApi("Delete me", Severity.MEDIUM, Priority.MEDIUM);
 
-        mockMvc.perform(delete(ISSUES + "/" + id))
+        mockMvc.perform(deleteAuth(ISSUES + "/" + id))
                 .andExpect(status().isNoContent())
                 .andExpect(jsonPath("$").doesNotExist());
 
@@ -367,7 +423,7 @@ class IssueApiIntegrationTest {
     @Test
     @DisplayName("DELETE of a missing id returns 404")
     void deleteMissing_returns404() throws Exception {
-        mockMvc.perform(delete(ISSUES + "/" + MISSING_ID))
+        mockMvc.perform(deleteAuth(ISSUES + "/" + MISSING_ID))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404));
     }
@@ -405,7 +461,7 @@ class IssueApiIntegrationTest {
     @Test
     @DisplayName("DELETE on the collection route returns 405, not 500")
     void deleteCollection_returns405() throws Exception {
-        mockMvc.perform(delete(ISSUES))
+        mockMvc.perform(deleteAuth(ISSUES))
                 .andExpect(status().isMethodNotAllowed())
                 .andExpect(jsonPath("$.status").value(405));
     }
@@ -413,7 +469,7 @@ class IssueApiIntegrationTest {
     @Test
     @DisplayName("POST with a non-JSON Content-Type returns 415")
     void postWrongContentType_returns415() throws Exception {
-        mockMvc.perform(post(ISSUES)
+        mockMvc.perform(postAuth(ISSUES)
                         .contentType(MediaType.TEXT_PLAIN)
                         .content("title=whatever"))
                 .andExpect(status().isUnsupportedMediaType())

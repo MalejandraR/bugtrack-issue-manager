@@ -65,6 +65,16 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Content-Type must be application/json");
     }
 
+    /**
+     * Wrong email or password on POST /api/auth/login. Deliberately identical for
+     * both cases (no user enumeration) and rendered in the same ApiError shape as
+     * every other error.
+     */
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<ApiError> handleInvalidCredentials(InvalidCredentialsException ex) {
+        return build(HttpStatus.UNAUTHORIZED, ex.getMessage());
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleGeneric(Exception ex) {
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred");

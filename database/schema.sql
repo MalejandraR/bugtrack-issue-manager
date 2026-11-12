@@ -13,3 +13,17 @@ CREATE TABLE IF NOT EXISTS issues (
     created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
+
+-- Application users (Fase 7). Registration is closed: rows are created only by the
+-- startup seed (AdminUserSeeder from AUTH_ADMIN_* env vars) — there is no public
+-- register endpoint. password_hash holds a BCrypt hash (60 chars), never a password.
+CREATE TABLE IF NOT EXISTS users (
+    id            BIGSERIAL PRIMARY KEY,
+    email         VARCHAR(255) NOT NULL,
+    password_hash VARCHAR(100) NOT NULL,
+    created_at    TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+-- Uniqueness on lower(email): logins are matched case-insensitively, so Admin@x
+-- and admin@x must be the same account. A plain UNIQUE (email) would not stop that.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_users_email ON users (lower(email));

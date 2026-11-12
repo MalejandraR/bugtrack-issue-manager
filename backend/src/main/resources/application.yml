@@ -34,3 +34,16 @@ spring:
 server:
   # Render/Heroku-style platforms inject their own port via $PORT.
   port: ${PORT:8080}
+
+# Fase 7 — authentication (JWT stateless, closed registration).
+# Every value comes from the environment (AUTH_*), the defaults here only keep
+# `mvn test` and read-only local runs booting:
+#   - a missing AUTH_JWT_SECRET falls back to an ephemeral in-memory secret (WARN),
+#   - a missing AUTH_ADMIN_* means no admin is seeded (WARN); tests seed their own.
+auth:
+  jwt:
+    secret: ${AUTH_JWT_SECRET:}
+    expiry-hours: ${AUTH_JWT_EXPIRY_HOURS:24}
+  admin:
+    email: ${AUTH_ADMIN_EMAIL:}
+    password: ${AUTH_ADMIN_PASSWORD:}
