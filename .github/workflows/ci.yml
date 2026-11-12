@@ -7,8 +7,9 @@
 # - The test datasource is overridable via env vars (see backend/src/test/resources/
 #   application-test.yml), which is exactly what lets CI use Postgres on 5432 while
 #   local development keeps 5436.
-# - No deploy steps and no secrets on purpose: this workflow only proves the code
-#   builds and the suites pass.
+# - No deploy steps: this workflow only proves the code builds and the suites pass.
+# - The only "secret" is a throwaway JWT signing key for the ephemeral E2E
+#   runner (AUTH_JWT_SECRET below); real deployments generate their own.
 
 name: CI
 
@@ -20,7 +21,7 @@ on:
 
 jobs:
   # ---------------------------------------------------------------------------
-  # 1) Backend: unit (17) + integration (21) tests against a real PostgreSQL 16.
+  # 1) Backend: unit (29) + integration (39) = 68 tests against a real PostgreSQL 16.
   #    The schema comes from database/schema.sql via the relative path
   #    file:../database/schema.sql, which works because Maven runs with
   #    backend/ as the working directory.
@@ -96,7 +97,7 @@ jobs:
         run: npm run build
 
   # ---------------------------------------------------------------------------
-  # 3) E2E: real backend jar + Vite dev server + Cypress (13 specs).
+  # 3) E2E: real backend jar + Vite dev server + Cypress (4 specs, 20 tests).
   #    Independent from backend-tests (own Postgres service) so it can run in
   #    parallel; failures here mean a full-stack regression, not a unit issue.
   # ---------------------------------------------------------------------------
@@ -154,6 +155,14 @@ jobs:
           BUGTRACK_DB_URL: jdbc:postgresql://localhost:5432/bugtrack_test
           BUGTRACK_DB_USERNAME: bugtrack
           BUGTRACK_DB_PASSWORD: bugtrack-local-2026
+          # Fase 7 (auth): seed the e2e admin (only when users table is empty) and
+          # sign JWTs. The credentials MUST match the Cypress defaults exposed in
+          # frontend/cypress.config.js (authEmail/authPassword). The JWT secret is
+          # a throwaway for this ephemeral runner, >= 32 bytes as required.
+          AUTH_JWT_SECRET: ci-only-jwt-secret-0123456789abcdef0123456789
+          AUTH_JWT_EXPIRY_HOURS: '24'
+          AUTH_ADMIN_EMAIL: admin@bugtrack.local
+          AUTH_ADMIN_PASSWORD: Bugtrack-E2E-2026!
         run: |
           java -jar target/*.jar > /tmp/bugtrack-backend.log 2>&1 &
 
@@ -199,6 +208,11 @@ jobs:
       # runner is ephemeral, so background processes die with the job.
       - name: Run Cypress E2E
         working-directory: frontend
+        env:
+          # Same account the backend seeds above (cypress.config.js falls back to
+          # these defaults; kept explicit so the coupling is visible in CI).
+          BUGTRACK_E2E_EMAIL: admin@bugtrack.local
+          BUGTRACK_E2E_PASSWORD: Bugtrack-E2E-2026!
         run: npx cypress run
 
   # ---------------------------------------------------------------------------

@@ -27,13 +27,21 @@ rápida sobre una API REST limpia.
 - **Ciclo de vida explícito**: el estado solo cambia por `PATCH /{id}/status`;
   toda incidencia nace `OPEN`.
 - **Detalle en drawer** lateral con deep-link (`/issues/:id`).
+- **Login con JWT** (Fase 7): las lecturas son públicas; crear, editar y cambiar
+  estado exigen `Authorization: Bearer <token>` (ver
+  [docs/api.md](docs/api.md#autenticación)). La UI oculta las acciones de
+  escritura sin sesión y redirige a `/login`.
 - Tema claro/oscuro automático (`prefers-color-scheme`), accesibilidad
   (labels reales, `role="alert"`, foco gestionado en el drawer).
 
 ## Qué NO incluye (a propósito)
 
-- **Autenticación / autorización** — la API está abierta (MVP de portafolio).
-- **Usuarios, proyectos, comentarios, asignación** — una sola entidad: `issues`.
+- **Registro de usuarios** — cerrado a propósito: no existe
+  `POST /api/auth/register`; el único admin se siembra al arrancar con
+  `AUTH_ADMIN_EMAIL` / `AUTH_ADMIN_PASSWORD` (solo si la tabla está vacía).
+- **Roles/permisos granulares, gestión de usuarios, refresh tokens** — hay un
+  solo rol (`ROLE_USER`) y tokens de vida fija (`AUTH_JWT_EXPIRY_HOURS`).
+- **Proyectos, comentarios, asignación** — una sola entidad: `issues`.
 - **Paginación** — el listado devuelve todo.
 - **Deploy** — corre local y en CI; no hay entorno publicado.
 
@@ -42,7 +50,7 @@ rápida sobre una API REST limpia.
 | Capa | Tecnología |
 |---|---|
 | Frontend | React 19 + Vite 8, React Router 7, CSS3 con design tokens (sin librerías de UI) |
-| Backend | Spring Boot 3.3.5 (Web, Data JPA, Validation), Java 21, Maven |
+| Backend | Spring Boot 3.3.5 (Web, Data JPA, Validation, Security), Java 21, Maven, JJWT 0.12.6 |
 | Base de datos | PostgreSQL 16 |
 | Tests | JUnit 5 + Mockito, `@SpringBootTest`, Cypress 16 |
 | CI | GitHub Actions (`.github/workflows/ci.yml`) |
@@ -97,9 +105,11 @@ createdb bugtrack          # o con tu administrador de Postgres favorito
 
 # 3. Backend (desde backend/)
 cd backend
-cp .env.example .env       # completá BUGTRACK_DB_PASSWORD (y puerto si difiere)
+cp .env.example .env       # completá BUGTRACK_DB_PASSWORD, AUTH_JWT_SECRET (>=32
+#                           # bytes: openssl rand -base64 48) y el admin AUTH_ADMIN_*
 ./run-local.sh             # arranca en http://localhost:8080
 #   (run-local.sh agrega Maven al PATH si hace falta y carga .env)
+#   El admin se siembra UNA sola vez, al primer arranque con la tabla users vacía.
 
 # 4. Frontend (en otra terminal, desde frontend/)
 cd frontend
@@ -111,11 +121,20 @@ Verificación rápida:
 
 ```bash
 curl http://localhost:8080/api/health   # {"status":"UP"}
+
+# Login + una escritura autenticada (reemplazá email/password con tus AUTH_ADMIN_*):
+TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"admin@example.com","password":"tu-password"}' | \
+  sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
+curl -X POST http://localhost:8080/api/issues \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"title":"Prueba","description":"Con token","severity":"LOW","priority":"LOW"}'
 ```
 
 ## Cómo ejecutar las pruebas
 
-**Backend** (unitarias + integración — 38 tests contra PostgreSQL real):
+**Backend** (unitarias + integración — 68 tests contra PostgreSQL real):
 
 ```bash
 cd backend
@@ -126,11 +145,17 @@ mvn test
 Las integraciones usan la base `bugtrack_test` (creala una vez) con valores por
 default locales; en CI se sobreescriben por env vars.
 
-**E2E con Cypress** (13 specs — necesitan backend :8080 y frontend :5173 corriendo):
+**E2E con Cypress** (4 specs / 20 tests — necesitan backend :8080 y frontend
+:5173 corriendo **con las credenciales del admin e2e**):
 
 ```bash
-# terminal 1                    # terminal 2
-cd backend && ./run-local.sh    cd frontend && npm run dev
+# terminal 1 (exportá las mismas AUTH_* que cypress.config.js espera)
+cd backend
+export AUTH_JWT_SECRET='...' AUTH_ADMIN_EMAIL=admin@bugtrack.local \
+  AUTH_ADMIN_PASSWORD='Bugtrack-E2E-2026!'
+./run-local.sh
+# terminal 2
+cd frontend && npm run dev
 
 # terminal 3
 cd frontend
@@ -142,12 +167,13 @@ Detalle de los 51 casos y sus resultados: [docs/test-plan.md](docs/test-plan.md)
 
 ## API
 
-Referencia completa (7 endpoints, enums, códigos de error con ejemplos):
-**[docs/api.md](docs/api.md)**.
+Referencia completa (9 endpoints, enums, autenticación, códigos de error con
+ejemplos): **[docs/api.md](docs/api.md)**.
 
 ```bash
+# Escrituras necesitan Bearer token (los GET son públicos):
 curl -X POST http://localhost:8080/api/issues \
-  -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
   -d '{"title":"Botón no responde","description":"Al hacer click no pasa nada","severity":"HIGH","priority":"URGENT"}'
 ```
 
@@ -157,15 +183,18 @@ El workflow `CI` (`.github/workflows/ci.yml`) corre en cada push y PR a `main`:
 
 | Job | Qué prueba |
 |---|---|
-| `backend-tests` | `mvn test` (38 tests) contra un contenedor PostgreSQL 16 |
+| `backend-tests` | `mvn test` (68 tests) contra un contenedor PostgreSQL 16 |
 | `frontend-build` | `npm ci` + `npm run build` |
-| `e2e` | Backend empaquetado + Vite dev + `cypress run` (13 specs), con su propio Postgres |
+| `e2e` | Backend empaquetado (con `AUTH_*` para sembrar el admin e2e) + Vite dev + `cypress run` (4 specs / 20 tests), con su propio Postgres |
 
 ## Limitaciones conocidas
 
-- Sin autenticación: cualquiera con acceso a la URL puede crear, editar o
-  borrar incidencias.
-- Usuario único implícito: no hay quién "sea dueño" de una incidencia.
+- Un solo usuario sembrado (admin) y un solo rol: no hay gestión de usuarios
+  ni permisos por incidencia (`assignee` sigue sin existir).
+- JWT de vida fija: sin refresh token — al vencer, la sesión del SPA se limpia y
+  toca volver a `/login`.
+- Registro cerrado: dar de alta a otra persona hoy es manual (insertar hash
+  BCrypt en la tabla `users`).
 - Sin paginación: con muchos issues, `GET /api/issues` crece sin límite.
 - Los timestamps se muestran en **UTC** (el frontend los formatea sin
   conversión de zona horaria local).
@@ -174,7 +203,8 @@ El workflow `CI` (`.github/workflows/ci.yml`) corre en cada push y PR a `main`:
 
 ## Mejoras futuras
 
-- Autenticación (JWT) y autorización por rol.
+- Registro/invitación de usuarios y roles (hoy: admin único sembrado).
+- Refresh token / rotación de sesión y gestión de usuarios desde la UI.
 - Comentarios e historial de cambios por incidencia.
 - Asignación a usuarios (`assignee`) con selector en el formulario.
 - Paginación y ordenamiento server-side en el listado.
