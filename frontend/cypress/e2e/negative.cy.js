@@ -3,6 +3,8 @@
 
 describe('Casos negativos', () => {
   beforeEach(() => {
+    // Form-validation cases visit /issues/new, which redirects when signed out.
+    cy.login()
     cy.apiCleanup()
   })
 

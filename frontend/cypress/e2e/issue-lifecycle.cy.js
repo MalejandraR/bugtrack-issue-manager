@@ -8,6 +8,8 @@ const UI_DESCRIPTION = 'Pasos para reproducirlo:\n1. Abrir el formulario.\n2. En
 
 describe('Ciclo de vida de una incidencia', () => {
   beforeEach(() => {
+    // The create/edit forms are reachable signed in only (Fase 7).
+    cy.login()
     cy.apiCleanup()
   })
 

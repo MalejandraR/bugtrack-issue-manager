@@ -1,12 +1,12 @@
 // Spec §11.3 — list filters: by status, by priority combined with status,
 // plus the result-count subtitle. Seeds are created through the API.
 
-const api = () => Cypress.expose('apiBaseUrl')
-
 describe('Filtros del listado de incidencias', () => {
   const ids = {}
 
   beforeEach(() => {
+    // Signed-in UI: rows expose the edit action + status select only with a session.
+    cy.login()
     cy.apiCleanup()
     Object.keys(ids).forEach((key) => delete ids[key])
 
@@ -38,13 +38,9 @@ describe('Filtros del listado de incidencias', () => {
       })
       .then((issue) => {
         ids.delta = issue.id
-        return cy.request('PATCH', `${api()}/issues/${ids.gamma}/status`, {
-          status: 'IN_PROGRESS',
-        })
+        return cy.apiPatchStatus(ids.gamma, 'IN_PROGRESS')
       })
-      .then(() =>
-        cy.request('PATCH', `${api()}/issues/${ids.delta}/status`, { status: 'CLOSED' }),
-      )
+      .then(() => cy.apiPatchStatus(ids.delta, 'CLOSED'))
   })
 
   afterEach(() => {
