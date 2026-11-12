@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import Badge from './Badge'
+import { useAuth } from '../hooks/useAuth'
 import { useIssue } from '../hooks/useIssue'
 import { useToast } from '../hooks/useToast'
 import { api } from '../services/api'
 import { notifyIssuesChanged } from '../utils/issueEvents'
-import { priorityTone, severityTone } from '../utils/badges'
+import { priorityTone, severityTone, statusTone } from '../utils/badges'
 import {
   PRIORITIES,
   STATUSES,
@@ -35,6 +36,7 @@ export default function IssueDetailDrawer() {
   const location = useLocation()
   const showToast = useToast()
   const { issue, loading, error, notFound, reload } = useIssue(id)
+  const { isAuthenticated } = useAuth()
   const [statusError, setStatusError] = useState(null)
   const closeRef = useRef(null)
   const openerRef = useRef(null)
@@ -140,20 +142,26 @@ export default function IssueDetailDrawer() {
             <dl>
               <dt>Estado</dt>
               <dd data-testid="issue-detail-status">
-                <select
-                  className="sel b"
-                  style={{ '--c': STATUS_COLORS[issue.status] ?? 'var(--surf2)' }}
-                  aria-label="Estado"
-                  value={issue.status}
-                  onChange={handleStatusChange}
-                  data-testid="status-select"
-                >
-                  {STATUSES.map((value) => (
-                    <option key={value} value={value}>
-                      {statusLabel(value)}
-                    </option>
-                  ))}
-                </select>
+                {isAuthenticated ? (
+                  <select
+                    className="sel b"
+                    style={{ '--c': STATUS_COLORS[issue.status] ?? 'var(--surf2)' }}
+                    aria-label="Estado"
+                    value={issue.status}
+                    onChange={handleStatusChange}
+                    data-testid="status-select"
+                  >
+                    {STATUSES.map((value) => (
+                      <option key={value} value={value}>
+                        {statusLabel(value)}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <Badge tone={statusTone(issue.status)} testId="status-static">
+                    {statusLabel(issue.status)}
+                  </Badge>
+                )}
                 {statusError && (
                   <p className="er" role="alert">
                     {statusError}
@@ -186,13 +194,15 @@ export default function IssueDetailDrawer() {
               <dd data-testid="issue-detail-updated-at">{formatDateTime(issue.updatedAt)}</dd>
             </dl>
 
-            <Link
-              className="btn btn--primary dr__edit"
-              to={`/issues/${issue.id}/edit`}
-              data-testid="issue-detail-edit"
-            >
-              Editar incidencia
-            </Link>
+            {isAuthenticated && (
+              <Link
+                className="btn btn--primary dr__edit"
+                to={`/issues/${issue.id}/edit`}
+                data-testid="issue-detail-edit"
+              >
+                Editar incidencia
+              </Link>
+            )}
           </>
         )}
       </aside>

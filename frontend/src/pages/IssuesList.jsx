@@ -5,6 +5,7 @@ import ErrorBanner from '../components/ErrorBanner'
 import Filters from '../components/Filters'
 import IssueRow from '../components/IssueRow'
 import Spinner from '../components/Spinner'
+import { useAuth } from '../hooks/useAuth'
 import { useIssues } from '../hooks/useIssues'
 import { onIssuesChanged } from '../utils/issueEvents'
 
@@ -17,6 +18,8 @@ export default function IssuesList() {
   const [query, setQuery] = useState('')
 
   const { issues, loading, error, reload } = useIssues()
+  // Create affordances only exist signed in (server enforces it regardless).
+  const { isAuthenticated } = useAuth()
 
   // Live rows: create / edit / status changes fire the app-wide signal.
   useEffect(() => onIssuesChanged(reload), [reload])
@@ -69,9 +72,11 @@ export default function IssuesList() {
                 }`}
           </p>
         </div>
-        <Link className="btn btn--primary" to="/issues/new" data-testid="issues-new-issue">
-          + Crear incidencia
-        </Link>
+        {isAuthenticated && (
+          <Link className="btn btn--primary" to="/issues/new" data-testid="issues-new-issue">
+            + Crear incidencia
+          </Link>
+        )}
       </header>
 
       <Filters
@@ -101,7 +106,10 @@ export default function IssuesList() {
         />
       )}
 
-      {!loading && !error && visible.length === 0 && !hasFilters && <EmptyState />}
+      {!loading && !error && visible.length === 0 && !hasFilters && (
+        // The CTA is a create action: without a session there is nothing to click.
+        <EmptyState actionLabel={isAuthenticated ? undefined : null} />
+      )}
 
       {!loading && !error && visible.length > 0 && (
         <div className="list">

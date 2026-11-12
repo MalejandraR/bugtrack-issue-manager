@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import Badge from '../components/Badge'
 import ErrorBanner from '../components/ErrorBanner'
 import Spinner from '../components/Spinner'
+import { useAuth } from '../hooks/useAuth'
 import { useIssues } from '../hooks/useIssues'
 import { onIssuesChanged } from '../utils/issueEvents'
 import { priorityTone, severityTone } from '../utils/badges'
@@ -22,6 +23,7 @@ function percent(value, total) {
 
 export default function Dashboard() {
   const { issues, loading, error, reload } = useIssues()
+  const { isAuthenticated } = useAuth() // create CTA is auth-only UX
 
   // Live counters: create / edit / status changes fire the app-wide signal.
   useEffect(() => onIssuesChanged(reload), [reload])
@@ -63,9 +65,11 @@ export default function Dashboard() {
             Total: <span data-testid="dashboard-counter-total">{total}</span> incidencias
           </p>
         </div>
-        <Link className="btn btn--primary" to="/issues/new" data-testid="dashboard-new-issue">
-          + Crear incidencia
-        </Link>
+        {isAuthenticated && (
+          <Link className="btn btn--primary" to="/issues/new" data-testid="dashboard-new-issue">
+            + Crear incidencia
+          </Link>
+        )}
       </header>
 
       {loading && <Spinner label="Cargando incidencias…" />}

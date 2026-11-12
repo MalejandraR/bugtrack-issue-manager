@@ -1,18 +1,30 @@
 // Single place where the backend base URL is configured.
 // Override with VITE_API_URL (e.g. in a .env file) when the API lives elsewhere.
+import { clearAuth, getAuthToken } from '../auth/authStorage'
+
 const RAW_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
 
 export const API_BASE_URL = RAW_BASE_URL.replace(/\/+$/, '')
 
 /**
  * Low level fetch wrapper: JSON in, JSON out, throws an ApiError on non-2xx.
+ *
+ * When a session exists, every request carries `Authorization: Bearer <token>`
+ * (public GETs ignore it server-side; writes require it). A 401 on a MUTATION
+ * means the token is dead: clear the session and land on /login. Public GETs and
+ * the login request itself never redirect — reads must stay public and a wrong
+ * password must render its inline error, not reload the page.
  */
 async function request(path, { method = 'GET', body } = {}) {
+  const headers = { 'Content-Type': 'application/json' }
+  const token = getAuthToken()
+  if (token) headers.Authorization = `Bearer ${token}`
+
   let response
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: body === undefined ? undefined : JSON.stringify(body),
     })
   } catch {
@@ -30,6 +42,11 @@ async function request(path, { method = 'GET', body } = {}) {
   }
 
   if (!response.ok) {
+    const isLoginAttempt = path === '/auth/login'
+    if (response.status === 401 && method !== 'GET' && !isLoginAttempt) {
+      clearAuth()
+      window.location.assign('/login')
+    }
     throw new ApiError(data?.message || `Error del servidor (${response.status}).`, {
       status: response.status,
       fieldErrors: data?.fieldErrors || null,
@@ -70,6 +87,18 @@ function toQuery(filters = {}) {
 export const api = {
   health() {
     return request('/health').then((r) => r.data)
+  },
+
+  /** POST /auth/login → { token, tokenType, expiresInHours, email }. */
+  login(email, password) {
+    return request('/auth/login', { method: 'POST', body: { email, password } }).then(
+      (r) => r.data,
+    )
+  },
+
+  /** GET /auth/me → { email } of the current token (requires auth). */
+  me() {
+    return request('/auth/me').then((r) => r.data)
   },
 
   listIssues(filters = {}) {

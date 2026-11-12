@@ -1,8 +1,9 @@
-import { useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
 import ErrorBanner from '../components/ErrorBanner'
 import IssueForm from '../components/IssueForm'
 import Spinner from '../components/Spinner'
+import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
 import { useIssue } from '../hooks/useIssue'
 import { api } from '../services/api'
@@ -13,6 +14,11 @@ export default function IssueEdit() {
   const navigate = useNavigate()
   const showToast = useToast()
   const { issue, loading, error, notFound, reload } = useIssue(id)
+  const { isAuthenticated } = useAuth()
+
+  // Guard (UX only): the API answers 401 without a token anyway. Declared after
+  // the hooks above so the rules of hooks hold.
+  if (!isAuthenticated) return <Navigate to="/login" replace />
 
   const handleSubmit = async (values) => {
     await api.updateIssue(id, values)

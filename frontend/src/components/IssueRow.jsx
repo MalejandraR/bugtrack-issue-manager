@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Badge from './Badge'
+import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
 import { api } from '../services/api'
 import { notifyIssuesChanged } from '../utils/issueEvents'
-import { priorityTone, severityTone } from '../utils/badges'
+import { priorityTone, severityTone, statusTone } from '../utils/badges'
 import {
   PRIORITIES,
   STATUSES,
@@ -19,10 +20,14 @@ import {
  * One issue as a card row (prototype's `.it`). The inline status select
  * PATCHes immediately on change and toasts the result; every list/counter
  * refreshes itself through the `bugtrack:issues-updated` signal.
+ *
+ * Signed out, the select degrades to a read-only status badge and the "Editar"
+ * action disappears: public list, protected writes (the server enforces it too).
  */
 export default function IssueRow({ issue }) {
   const navigate = useNavigate()
   const showToast = useToast()
+  const { isAuthenticated } = useAuth()
   const [statusError, setStatusError] = useState(null)
 
   const handleStatusChange = async (event) => {
@@ -71,20 +76,26 @@ export default function IssueRow({ issue }) {
         <span className="sr-only" aria-hidden="true" data-testid={`issue-status-${issue.id}`}>
           {statusLabel(issue.status)}
         </span>
-        <select
-          className="sel b"
-          style={{ '--c': STATUS_COLORS[issue.status] ?? 'var(--surf2)' }}
-          aria-label={`Estado de la incidencia ${issue.id}`}
-          value={issue.status}
-          onChange={handleStatusChange}
-          data-testid={`issue-status-select-${issue.id}`}
-        >
-          {STATUSES.map((value) => (
-            <option key={value} value={value}>
-              {statusLabel(value)}
-            </option>
-          ))}
-        </select>
+        {isAuthenticated ? (
+          <select
+            className="sel b"
+            style={{ '--c': STATUS_COLORS[issue.status] ?? 'var(--surf2)' }}
+            aria-label={`Estado de la incidencia ${issue.id}`}
+            value={issue.status}
+            onChange={handleStatusChange}
+            data-testid={`issue-status-select-${issue.id}`}
+          >
+            {STATUSES.map((value) => (
+              <option key={value} value={value}>
+                {statusLabel(value)}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <Badge tone={statusTone(issue.status)} testId={`issue-status-static-${issue.id}`}>
+            {statusLabel(issue.status)}
+          </Badge>
+        )}
         {statusError && (
           <span className="er" role="alert">
             {statusError}
@@ -96,13 +107,15 @@ export default function IssueRow({ issue }) {
         <Link className="btn btn--sm" to={`/issues/${issue.id}`} data-testid={`issue-view-${issue.id}`}>
           Ver
         </Link>
-        <Link
-          className="btn btn--sm"
-          to={`/issues/${issue.id}/edit`}
-          data-testid={`issue-edit-${issue.id}`}
-        >
-          Editar
-        </Link>
+        {isAuthenticated && (
+          <Link
+            className="btn btn--sm"
+            to={`/issues/${issue.id}/edit`}
+            data-testid={`issue-edit-${issue.id}`}
+          >
+            Editar
+          </Link>
+        )}
       </div>
     </div>
   )

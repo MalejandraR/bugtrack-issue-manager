@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
+import { useAuth } from '../hooks/useAuth'
 import { useIssues } from '../hooks/useIssues'
 import { onIssuesChanged } from '../utils/issueEvents'
 
@@ -7,9 +8,14 @@ import { onIssuesChanged } from '../utils/issueEvents'
  * Top header (prototype's `.top`): the BugTrack bug logo plus the pill
  * navigation. "Incidencias" carries a lime badge with the number of issues
  * that are not closed yet; it refreshes through the app-wide issues signal.
+ *
+ * Auth (Fase 7): "+ Nueva" only exists when signed in, and the right side shows
+ * "Ingresar" (logged out) or the account email + "Salir" (logged in). Hiding is
+ * UX only — the server is what actually rejects unauthenticated writes.
  */
 export default function SiteHeader() {
   const { issues, reload } = useIssues()
+  const { isAuthenticated, email, logout } = useAuth()
 
   useEffect(() => onIssuesChanged(reload), [reload])
 
@@ -39,9 +45,25 @@ export default function SiteHeader() {
         <NavLink to="/issues" data-testid="nav-issues">
           Incidencias <span className="n">{openCount}</span>
         </NavLink>
-        <NavLink to="/issues/new" data-testid="nav-new-issue">
-          + Nueva
-        </NavLink>
+        {isAuthenticated && (
+          <NavLink to="/issues/new" data-testid="nav-new-issue">
+            + Nueva
+          </NavLink>
+        )}
+        {isAuthenticated ? (
+          <span className="nav__auth" data-testid="nav-auth">
+            <span className="nav__user" data-testid="auth-user-email">
+              {email}
+            </span>
+            <button type="button" className="btn btn--sm" onClick={logout} data-testid="auth-logout">
+              Salir
+            </button>
+          </span>
+        ) : (
+          <NavLink to="/login" data-testid="auth-login">
+            Ingresar
+          </NavLink>
+        )}
       </nav>
     </header>
   )

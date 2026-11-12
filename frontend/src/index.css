@@ -211,6 +211,23 @@ textarea {
   text-align: center;
 }
 
+/* Auth area (Fase 7): email + "Salir" pill inside the nav capsule. */
+.nav__auth {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px 4px 16px;
+}
+
+.nav__user {
+  font-weight: 700;
+  color: var(--mut);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .main {
   flex: 1;
   width: 100%;

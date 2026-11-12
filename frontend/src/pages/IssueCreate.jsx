@@ -1,5 +1,6 @@
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import IssueForm from '../components/IssueForm'
+import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
 import { api } from '../services/api'
 import { notifyIssuesChanged } from '../utils/issueEvents'
@@ -7,6 +8,10 @@ import { notifyIssuesChanged } from '../utils/issueEvents'
 export default function IssueCreate() {
   const navigate = useNavigate()
   const showToast = useToast()
+  const { isAuthenticated } = useAuth()
+
+  // Guard (UX only): the API answers 401 without a token anyway.
+  if (!isAuthenticated) return <Navigate to="/login" replace />
 
   const handleSubmit = async (values) => {
     const created = await api.createIssue(values)

@@ -1,12 +1,14 @@
 import { useEffect, useRef } from 'react'
 import { BrowserRouter, Link, Route, Routes, useLocation } from 'react-router-dom'
 import SiteHeader from './components/SiteHeader'
+import { AuthProvider } from './hooks/useAuth'
 import { ToastProvider } from './hooks/useToast'
 import Dashboard from './pages/Dashboard'
 import IssueCreate from './pages/IssueCreate'
 import IssueDetailDrawer from './components/IssueDetailDrawer'
 import IssueEdit from './pages/IssueEdit'
 import IssuesList from './pages/IssuesList'
+import Login from './pages/Login'
 
 /** `/issues/5` style paths are the detail drawer rendered on top of the list. */
 const DRAWER_PATH = /^\/issues\/\d+$/
@@ -57,6 +59,7 @@ function AppShell() {
       <main className="main">
         <Routes>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/login" element={<Login />} />
           <Route path="/issues" element={<IssuesList />}>
             <Route path=":id" element={<IssueDetailDrawer />} />
           </Route>
@@ -73,10 +76,12 @@ function AppShell() {
 export default function App() {
   return (
     <BrowserRouter>
-      <ToastProvider>
-        <ScrollManager />
-        <AppShell />
-      </ToastProvider>
+      <AuthProvider>
+        <ToastProvider>
+          <ScrollManager />
+          <AppShell />
+        </ToastProvider>
+      </AuthProvider>
     </BrowserRouter>
   )
 }
