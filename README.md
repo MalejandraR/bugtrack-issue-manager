@@ -46,7 +46,16 @@ rápida sobre una API REST limpia.
   solo rol (`ROLE_USER`) y tokens de vida fija (`AUTH_JWT_EXPIRY_HOURS`).
 - **Proyectos, comentarios, asignación** — una sola entidad: `issues`.
 - **Paginación** — el listado devuelve todo.
-- **Deploy** — corre local y en CI; no hay entorno publicado.
+
+## Capturas
+
+| Dashboard | Lista con filtros |
+|---|---|
+| ![Dashboard con contadores y reporte por severidad](docs/screenshots/dashboard.png) | ![Lista de incidencias con buscador y filtros por estado, prioridad y severidad](docs/screenshots/lista-filtros.png) |
+
+| Login |
+|---|
+| ![Pantalla de login con aviso de registro cerrado](docs/screenshots/login.png) |
 
 ## Stack
 
