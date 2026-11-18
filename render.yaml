@@ -44,15 +44,10 @@ services:
       # Token lifetime in hours (optional; 24 is also the app default).
       - key: AUTH_JWT_EXPIRY_HOURS
         value: "24"
-      # Admin account seeded ONLY when the users table is empty. The dashboard
-      # "Add" button is unavailable for blueprint-managed services, so these are
-      # created EMPTY here and filled by hand in the Environment tab (Edit mode).
-      # After the first fill they are REMOVED from this file: Render preserves
-      # variables omitted from the Blueprint, so manual values survive syncs.
-      - key: AUTH_ADMIN_EMAIL
-        value: ""
-      - key: AUTH_ADMIN_PASSWORD
-        value: ""
+      # Admin seed vars (AUTH_ADMIN_EMAIL / AUTH_ADMIN_PASSWORD) are deliberately
+      # OMITTED from this file: they were created empty here, filled by hand in
+      # the Render dashboard, and Render preserves omitted variables across syncs.
+      # See AdminUserSeeder: seeds only when the users table is empty.
 
 databases:
   - name: bugtrack-db
