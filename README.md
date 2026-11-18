@@ -4,6 +4,9 @@
 
 > **BugTrack** — un gestor de issues minimalista y completo de punta a punta:
 > React + Spring Boot + PostgreSQL, con pruebas reales y CI.
+>
+> 🌐 **En producción:** https://bugtrack-issue-manager.vercel.app
+> ⚙️ API: https://bugtrack-backend-9jih.onrender.com/api
 
 *(El badge de CI se activa en el primer push a `main` con el workflow
 `.github/workflows/ci.yml`; hasta entonces muestra "no status".)*
@@ -186,6 +189,7 @@ El workflow `CI` (`.github/workflows/ci.yml`) corre en cada push y PR a `main`:
 | `backend-tests` | `mvn test` (68 tests) contra un contenedor PostgreSQL 16 |
 | `frontend-build` | `npm ci` + `npm run build` |
 | `e2e` | Backend empaquetado (con `AUTH_*` para sembrar el admin e2e) + Vite dev + `cypress run` (4 specs / 20 tests), con su propio Postgres |
+| `backend-image` | `docker build` de la imagen multi-stage (valida el Dockerfile que usa Render) |
 
 ## Limitaciones conocidas
 
@@ -200,6 +204,10 @@ El workflow `CI` (`.github/workflows/ci.yml`) corre en cada push y PR a `main`:
   conversión de zona horaria local).
 - La app debe arrancarse desde `backend/` (la ruta `file:../database/schema.sql`
   es relativa al directorio de trabajo).
+- **Plan gratis en Render:** el backend se duerme tras ~15 minutos sin tráfico;
+  la primera petición tarda ~30-90 s en despertarlo. El frontend de Vercel no
+  tiene este problema, pero una acción que toque la API después de un rato
+  inactivo puede parecer lenta la primera vez.
 
 ## Mejoras futuras
 
@@ -208,7 +216,6 @@ El workflow `CI` (`.github/workflows/ci.yml`) corre en cada push y PR a `main`:
 - Comentarios e historial de cambios por incidencia.
 - Asignación a usuarios (`assignee`) con selector en el formulario.
 - Paginación y ordenamiento server-side en el listado.
-- Deploy (contenedor + base gestionada) y badge de cobertura.
 
 ## Licencia y autoría
 
