@@ -53,9 +53,9 @@ rápida sobre una API REST limpia.
 |---|---|
 | ![Dashboard con contadores y reporte por severidad](docs/screenshots/dashboard.png) | ![Lista de incidencias con buscador y filtros por estado, prioridad y severidad](docs/screenshots/lista-filtros.png) |
 
-| Login |
-|---|
-| ![Pantalla de login con aviso de registro cerrado](docs/screenshots/login.png) |
+| Login | Detalle (drawer) |
+|---|---|
+| ![Pantalla de login con aviso de registro cerrado](docs/screenshots/login.png) | ![Detalle de una incidencia abierto en el panel lateral](docs/screenshots/drawer-detalle.png) |
 
 ## Stack
 
