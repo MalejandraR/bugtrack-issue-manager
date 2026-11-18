@@ -2,14 +2,13 @@
 
 [![CI](https://github.com/MalejandraR/bugtrack-issue-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/MalejandraR/bugtrack-issue-manager/actions/workflows/ci.yml)
 
-> **BugTrack** — un gestor de issues minimalista y completo de punta a punta:
-> React + Spring Boot + PostgreSQL, con pruebas reales y CI.
->
-> 🌐 **En producción:** https://bugtrack-issue-manager.vercel.app
-> ⚙️ API: https://bugtrack-backend-9jih.onrender.com/api
+**Por María Alejandra R.** · [Portafolio ifelse](https://malejandrar.github.io/ifelse-portfolio/) · [@MalejandraR](https://github.com/MalejandraR)
 
-*(El badge de CI se activa en el primer push a `main` con el workflow
-`.github/workflows/ci.yml`; hasta entonces muestra "no status".)*
+> Gestor de issues de punta a punta: **React + Spring Boot + PostgreSQL**, con
+> pruebas reales, CI y despliegue en producción.
+>
+> 🌐 **App:** https://bugtrack-issue-manager.vercel.app
+> ⚙️ **API:** https://bugtrack-backend-9jih.onrender.com/api
 
 ## El problema que resuelve
 
@@ -19,7 +18,7 @@ clasificarla por severidad y prioridad, moverla por su ciclo de vida
 (abierta → en progreso → cerrada) y filtrarla al instante. Todo en una SPA
 rápida sobre una API REST limpia.
 
-## Funcionalidades (MVP actual)
+## Funcionalidades
 
 - **Dashboard** con contadores (total, abiertas, en progreso, cerradas) y
   reporte por severidad.
@@ -30,8 +29,8 @@ rápida sobre una API REST limpia.
 - **Ciclo de vida explícito**: el estado solo cambia por `PATCH /{id}/status`;
   toda incidencia nace `OPEN`.
 - **Detalle en drawer** lateral con deep-link (`/issues/:id`).
-- **Login con JWT** (Fase 7): las lecturas son públicas; crear, editar y cambiar
-  estado exigen `Authorization: Bearer <token>` (ver
+- **Login con JWT**: las lecturas son públicas; crear, editar y cambiar estado
+  exigen `Authorization: Bearer <token>` (ver
   [docs/api.md](docs/api.md#autenticación)). La UI oculta las acciones de
   escritura sin sesión y redirige a `/login`.
 - Tema claro/oscuro automático (`prefers-color-scheme`), accesibilidad
@@ -65,7 +64,7 @@ rápida sobre una API REST limpia.
 | Backend | Spring Boot 3.3.5 (Web, Data JPA, Validation, Security), Java 21, Maven, JJWT 0.12.6 |
 | Base de datos | PostgreSQL 16 |
 | Tests | JUnit 5 + Mockito, `@SpringBootTest`, Cypress 16 |
-| CI | GitHub Actions (`.github/workflows/ci.yml`) |
+| CI/CD | GitHub Actions (4 jobs) · Docker · Render (backend) · Vercel (frontend) |
 
 ## Arquitectura (resumen)
 
@@ -93,17 +92,14 @@ La versión completa, con el porqué de cada decisión, está en
 
 - **Java 21** (JDK) — `java -version`
 - **Maven 3.9.x** — `mvn -v`
-- **Node.js 20+** (probado con 24; CI usa 24) — `node -v`
+- **Node.js 20+** — `node -v`
 - **PostgreSQL 16**
 
-> **⚠️ Nota sobre puertos (configuración específica de esta máquina):** en el
-> equipo de desarrollo local, PostgreSQL corre en el puerto **5436** porque
-> 5432–5435 están ocupados por instalaciones legadas. Por eso
-> `application.yml` usa `jdbc:postgresql://127.0.0.1:5436/bugtrack` como
-> default. **En tu máquina (o en CI) el puerto puede ser el 5432 estándar**:
-> no hardcodees nada — todo se configura por variables de entorno
+> **Nota sobre el puerto de PostgreSQL:** por defecto la configuración local
+> apunta a `127.0.0.1:5436` (puerto no estándar). En tu máquina puede ser el
+> 5432: no hardcodees nada, todo se configura por variables de entorno
 > (`BUGTRACK_DB_URL`, `BUGTRACK_DB_USERNAME`, `BUGTRACK_DB_PASSWORD`), como
-> se ve en `.github/workflows/ci.yml`.
+> en `.github/workflows/ci.yml`.
 
 ## Instalación paso a paso
 
@@ -150,7 +146,6 @@ curl -X POST http://localhost:8080/api/issues \
 
 ```bash
 cd backend
-export PATH="$HOME/apps/apache-maven-3.9.9/bin:$PATH"   # si mvn no está en el PATH
 mvn test
 ```
 
@@ -175,7 +170,7 @@ npx cypress open          # interactivo   — o —
 npx cypress run           # headless
 ```
 
-Detalle de los 51 casos y sus resultados: [docs/test-plan.md](docs/test-plan.md).
+Historial de casos y resultados: [docs/test-plan.md](docs/test-plan.md).
 
 ## API
 
@@ -202,13 +197,6 @@ El workflow `CI` (`.github/workflows/ci.yml`) corre en cada push y PR a `main`:
 
 ## Limitaciones conocidas
 
-- Un solo usuario sembrado (admin) y un solo rol: no hay gestión de usuarios
-  ni permisos por incidencia (`assignee` sigue sin existir).
-- JWT de vida fija: sin refresh token — al vencer, la sesión del SPA se limpia y
-  toca volver a `/login`.
-- Registro cerrado: dar de alta a otra persona hoy es manual (insertar hash
-  BCrypt en la tabla `users`).
-- Sin paginación: con muchos issues, `GET /api/issues` crece sin límite.
 - Los timestamps se muestran en **UTC** (el frontend los formatea sin
   conversión de zona horaria local).
 - La app debe arrancarse desde `backend/` (la ruta `file:../database/schema.sql`
@@ -226,6 +214,7 @@ El workflow `CI` (`.github/workflows/ci.yml`) corre en cada push y PR a `main`:
 - Asignación a usuarios (`assignee`) con selector en el formulario.
 - Paginación y ordenamiento server-side en el listado.
 
-## Licencia y autoría
+## Autoría
 
-Proyecto académico de **María Alejandra R.** — portafolio **ifelse**.
+Proyecto diseñado, construido y documentado por **María Alejandra R.** como
+parte de su portafolio [ifelse](https://malejandrar.github.io/ifelse-portfolio/).
